@@ -8,6 +8,6 @@ There is no separate security email. A report should wait for a maintainer respo
 
 ## Scope
 
-Supported code is the default branch. Account tokens in `~/.twitter-use/accounts.txt` and browser cookies are in scope when the tool stores, logs, or sends them somewhere other than X. The state file is supposed to keep SHA-256 labels only.
+Supported code is the default branch. Account tokens in `~/.twitter-use/accounts.json` (or a legacy `accounts.txt`) and browser cookies are in scope when the tool stores, logs, or sends them somewhere other than X. The state file is supposed to keep SHA-256 labels only.
 
 The public web client bearer compiled into the binary is X's published web token. It is not a user credential. Finding that string is not a vulnerability.

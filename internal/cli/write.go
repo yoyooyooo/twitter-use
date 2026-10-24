@@ -13,7 +13,7 @@ func addWrite(root *cobra.Command, a *app) {
 }
 
 func whoamiCmd(a *app) *cobra.Command {
-	return &cobra.Command{Use: "whoami", Short: "Show the current identity. Not pooled.", RunE: func(cmd *cobra.Command, _ []string) error {
+	return &cobra.Command{Use: "whoami", Short: "Show the current identity", RunE: func(cmd *cobra.Command, _ []string) error {
 		api, _, err := a.open(cmd, false)
 		if err != nil {
 			return a.fail(err)

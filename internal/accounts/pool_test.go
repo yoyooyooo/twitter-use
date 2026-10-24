@@ -11,7 +11,7 @@ func TestConfigDirIsOurs(t *testing.T) {
 	if filepath.Base(ConfigDir()) != ".twitter-use" {
 		t.Fatal(ConfigDir())
 	}
-	if filepath.Base(DefaultAccountsFile()) != "accounts.txt" || filepath.Base(DefaultStateFile()) != "account_pool.json" {
+	if filepath.Base(DefaultAccountsFile()) != "accounts.json" || filepath.Base(DefaultStateFile()) != "account_pool.json" {
 		t.Fatal(DefaultAccountsFile(), DefaultStateFile())
 	}
 	if strings.Contains(ConfigDir(), "twitter-cli") {
@@ -98,6 +98,63 @@ func TestPoolPathOverridesDoNotNeedHomeDirectory(t *testing.T) {
 	}
 	if _, err := os.Stat(statePath); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestJSONRosterRolesAndSelector(t *testing.T) {
+	text := `{
+	  "version": 1,
+	  "accounts": [
+	    {"alias": "main", "primary": true, "auth_token": "alpha", "ct0": "ct0a"},
+	    {"alias": "spare", "auth_token": "beta", "ct0": "ct0b"},
+	    {"auth_token": "gamma", "ct0": "ct0c", "pool": false}
+	  ]
+	}`
+	list, err := ParseConfig(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 3 || !list[0].Primary || list[0].Pool || !list[1].Pool || list[1].Primary || list[2].Pool {
+		t.Fatalf("roles = %#v", list)
+	}
+	roster := &Roster{Accounts: list, State: filepath.Join(t.TempDir(), "state.json")}
+	if roster.Primary() == nil || roster.Primary().Alias != "main" {
+		t.Fatal(roster.Primary())
+	}
+	pool, err := roster.Pool()
+	if err != nil || len(pool.Accounts) != 1 || pool.Accounts[0].Alias != "spare" {
+		t.Fatalf("pool = %#v %v", pool, err)
+	}
+	got, err := roster.Resolve("spare")
+	if err != nil || got.Label != list[1].Label {
+		t.Fatalf("alias = %#v %v", got, err)
+	}
+	got, err = roster.Resolve(list[2].Label)
+	if err != nil || got.AuthToken != "gamma" {
+		t.Fatalf("label = %#v %v", got, err)
+	}
+	if _, err := roster.Resolve("missing"); err == nil {
+		t.Fatal("missing selector was accepted")
+	}
+	if _, err := ParseConfig(`{"version":1,"accounts":[{"primary":true,"auth_token":"a","ct0":"c"},{"primary":true,"auth_token":"b","ct0":"d"}]}`); err == nil {
+		t.Fatal("two primaries were accepted")
+	}
+	if _, err := ParseConfig(`{"version":1,"accounts":[{"alias":"same","auth_token":"a","ct0":"c"},{"alias":"same","auth_token":"b","ct0":"d"}]}`); err == nil {
+		t.Fatal("duplicate alias was accepted")
+	}
+	ambiguous := &Roster{Accounts: []Account{
+		{Alias: list[1].Label, Label: "aaaaaaaaaaaa", AuthToken: "a", CT0: "c", Pool: true},
+		{Label: list[1].Label, AuthToken: "b", CT0: "d", Pool: true},
+	}}
+	if _, err := ambiguous.Resolve(list[1].Label); err == nil {
+		t.Fatal("ambiguous selector was accepted")
+	}
+	if _, err := (&Roster{Accounts: list}).Pool(); err != nil {
+		t.Fatal(err)
+	}
+	onlyPrimary := &Roster{Accounts: []Account{list[0]}}
+	if _, err := onlyPrimary.Pool(); err == nil {
+		t.Fatal("primary-only file produced a pool")
 	}
 }
 

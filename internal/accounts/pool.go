@@ -27,10 +27,14 @@ const (
 )
 
 // Account is one auth_token/ct0 pair. Label is safe to log.
+// Alias, Primary, and Pool come from accounts.json. A legacy text line is pool-only.
 type Account struct {
 	AuthToken string
 	CT0       string
 	Label     string
+	Alias     string
+	Primary   bool
+	Pool      bool
 }
 
 // Label returns the first 12 hex chars of SHA-256(auth_token).
@@ -77,7 +81,7 @@ func ParseAccounts(text string) ([]Account, error) {
 			return nil, errs.Auth(fmt.Sprintf("Duplicate auth token on line %d", lineno+1))
 		}
 		seen[parts[0]] = struct{}{}
-		out = append(out, Account{AuthToken: parts[0], CT0: parts[1], Label: Label(parts[0])})
+		out = append(out, Account{AuthToken: parts[0], CT0: parts[1], Label: Label(parts[0]), Pool: true})
 	}
 	return out, nil
 }
@@ -88,8 +92,12 @@ func ConfigDir() string {
 	return filepath.Join(home, ".twitter-use")
 }
 
-// DefaultAccountsFile is ~/.twitter-use/accounts.txt.
+// DefaultAccountsFile is ~/.twitter-use/accounts.json.
 func DefaultAccountsFile() string {
+	return filepath.Join(ConfigDir(), "accounts.json")
+}
+
+func legacyAccountsFile() string {
 	return filepath.Join(ConfigDir(), "accounts.txt")
 }
 
@@ -98,17 +106,25 @@ func DefaultStateFile() string {
 	return filepath.Join(ConfigDir(), "account_pool.json")
 }
 
-// ResolveAccountsFile returns the pool file, or empty when public reads use one login.
+// ResolveAccountsFile returns the account file, or empty when public reads use one login.
 // An explicit TWITTER_ACCOUNTS_FILE wins even when that path is missing.
+// Without it, accounts.json wins over a legacy accounts.txt.
 func ResolveAccountsFile() string {
 	if raw := strings.TrimSpace(os.Getenv(FileEnv)); raw != "" {
 		return expand(raw)
 	}
-	path := DefaultAccountsFile()
-	if info, err := os.Stat(path); err == nil && !info.IsDir() {
-		return path
+	if fileExists(DefaultAccountsFile()) {
+		return DefaultAccountsFile()
+	}
+	if fileExists(legacyAccountsFile()) {
+		return legacyAccountsFile()
 	}
 	return ""
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
 }
 
 // Configured reports whether public reads must use the pool.
@@ -127,19 +143,200 @@ func LoadFromEnv() (*Pool, error) {
 		}
 		return nil, errs.Auth(fmt.Sprintf("Cannot read %s: %s", path, err))
 	}
-	list, err := ParseAccounts(string(text))
+	roster, err := parseRoster(path, text)
+	if err != nil {
+		return nil, err
+	}
+	pool, err := roster.Pool()
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Loaded %d pooled accounts from %s", len(pool.Accounts), path)
+	return pool, nil
+}
+
+// LoadRoster reads every account. The pool, when present, contains only pool members.
+func LoadRoster() (*Roster, error) {
+	path := ResolveAccountsFile()
+	if path == "" {
+		return nil, errs.Auth(fmt.Sprintf("No account file. Add %s or set %s.", DefaultAccountsFile(), FileEnv))
+	}
+	text, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, errs.Auth(fmt.Sprintf("%s does not exist: %s", FileEnv, path))
+		}
+		return nil, errs.Auth(fmt.Sprintf("Cannot read %s: %s", path, err))
+	}
+	roster, err := parseRoster(path, text)
+	if err != nil {
+		return nil, err
+	}
+	pooled := 0
+	for _, account := range roster.Accounts {
+		if account.Pool {
+			pooled++
+		}
+	}
+	log.Printf("Loaded %d accounts (%d pooled) from %s", len(roster.Accounts), pooled, path)
+	return roster, nil
+}
+
+func parseRoster(path string, text []byte) (*Roster, error) {
+	list, err := ParseConfig(string(text))
 	if err != nil {
 		return nil, err
 	}
 	if len(list) == 0 {
-		return nil, errs.Auth("Account pool has no accounts: " + path)
+		return nil, errs.Auth("Account file has no accounts: " + path)
 	}
 	state := DefaultStateFile()
 	if raw := strings.TrimSpace(os.Getenv(StateEnv)); raw != "" {
 		state = expand(raw)
 	}
-	log.Printf("Loaded %d pooled accounts from %s", len(list), path)
-	return New(list, state)
+	return &Roster{Accounts: list, State: state}, nil
+}
+
+// ParseConfig reads accounts.json, or legacy "auth_token ct0" lines when the text is not JSON.
+func ParseConfig(text string) ([]Account, error) {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return nil, errs.Auth("Account file is empty")
+	}
+	if strings.HasPrefix(trimmed, "{") {
+		return parseJSONAccounts(trimmed)
+	}
+	return ParseAccounts(trimmed)
+}
+
+type accountFile struct {
+	Version  int             `json:"version"`
+	Accounts []accountRecord `json:"accounts"`
+}
+
+type accountRecord struct {
+	Alias     string `json:"alias"`
+	Primary   *bool  `json:"primary"`
+	Pool      *bool  `json:"pool"`
+	AuthToken string `json:"auth_token"`
+	CT0       string `json:"ct0"`
+}
+
+func parseJSONAccounts(text string) ([]Account, error) {
+	var file accountFile
+	if err := json.Unmarshal([]byte(text), &file); err != nil {
+		return nil, errs.Auth("Invalid account file: " + err.Error())
+	}
+	if file.Version != 1 {
+		return nil, errs.Auth(fmt.Sprintf("Unsupported account file version %d", file.Version))
+	}
+	if len(file.Accounts) == 0 {
+		return nil, errs.Auth("Account file has no accounts")
+	}
+	out := make([]Account, 0, len(file.Accounts))
+	seenToken := map[string]struct{}{}
+	seenAlias := map[string]struct{}{}
+	primaries := 0
+	for i, item := range file.Accounts {
+		token := strings.TrimSpace(item.AuthToken)
+		ct0 := strings.TrimSpace(item.CT0)
+		if token == "" || ct0 == "" {
+			return nil, errs.Auth(fmt.Sprintf("Account %d is missing auth_token or ct0", i+1))
+		}
+		if _, ok := seenToken[token]; ok {
+			return nil, errs.Auth(fmt.Sprintf("Duplicate auth token on account %d", i+1))
+		}
+		seenToken[token] = struct{}{}
+		alias := strings.TrimSpace(item.Alias)
+		if alias != "" {
+			if _, ok := seenAlias[alias]; ok {
+				return nil, errs.Auth(fmt.Sprintf("Duplicate alias %q", alias))
+			}
+			seenAlias[alias] = struct{}{}
+		}
+		primary := item.Primary != nil && *item.Primary
+		if primary {
+			primaries++
+		}
+		pool := !primary
+		if item.Pool != nil {
+			pool = *item.Pool
+		}
+		out = append(out, Account{
+			AuthToken: token,
+			CT0:       ct0,
+			Label:     Label(token),
+			Alias:     alias,
+			Primary:   primary,
+			Pool:      pool,
+		})
+	}
+	if primaries > 1 {
+		return nil, errs.Auth("Account file has more than one primary")
+	}
+	return out, nil
+}
+
+// Roster is the account file. Pool membership is separate from the primary identity.
+type Roster struct {
+	Accounts []Account
+	State    string
+}
+
+// Primary returns the marked identity, or nil.
+func (r *Roster) Primary() *Account {
+	if r == nil {
+		return nil
+	}
+	for i := range r.Accounts {
+		if r.Accounts[i].Primary {
+			account := r.Accounts[i]
+			return &account
+		}
+	}
+	return nil
+}
+
+// Pool returns sticky selection among accounts marked for public reads.
+func (r *Roster) Pool() (*Pool, error) {
+	var pooled []Account
+	for _, account := range r.Accounts {
+		if account.Pool {
+			pooled = append(pooled, account)
+		}
+	}
+	if len(pooled) == 0 {
+		return nil, errs.Auth("Account file has no pooled accounts")
+	}
+	return New(pooled, r.State)
+}
+
+// Resolve finds an alias or a label. An alias wins when both names exist on different accounts.
+func (r *Roster) Resolve(ref string) (Account, error) {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return Account{}, errs.Auth("Account selector is empty")
+	}
+	var aliasHit, labelHit *Account
+	for i := range r.Accounts {
+		account := &r.Accounts[i]
+		if account.Alias != "" && account.Alias == ref {
+			aliasHit = account
+		}
+		if account.Label == ref {
+			labelHit = account
+		}
+	}
+	if aliasHit != nil && labelHit != nil && aliasHit.Label != labelHit.Label {
+		return Account{}, errs.Auth(fmt.Sprintf("Account %q is ambiguous", ref))
+	}
+	if aliasHit != nil {
+		return *aliasHit, nil
+	}
+	if labelHit != nil {
+		return *labelHit, nil
+	}
+	return Account{}, errs.Auth(fmt.Sprintf("No account %q", ref))
 }
 
 // Pool is sticky selection with a cross-process cooldown file.

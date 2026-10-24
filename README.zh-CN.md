@@ -50,12 +50,24 @@ go install github.com/yoyooyooo/twitter-use/cmd/twitter@latest
 
 ## 第一次成功
 
-创建 `~/.twitter-use/accounts.txt`，权限 `600`。每行一个账号，`auth_token` 和 `ct0` 用空格分开。一行也是合法号池。不要把这个文件提交进仓库。
+创建 `~/.twitter-use/accounts.json`，权限 `600`。可以有一个 `primary`，它是首页、书签和写入的默认身份，并且默认不参加公开轮换。其他账号默认进号池。`alias` 是可选短名。不要把这个文件提交进仓库。
 
 ```bash
 install -d -m 700 ~/.twitter-use
-install -m 600 /dev/null ~/.twitter-use/accounts.txt
+install -m 600 /dev/null ~/.twitter-use/accounts.json
 ```
+
+```json
+{
+  "version": 1,
+  "accounts": [
+    {"alias": "main", "primary": true, "auth_token": "...", "ct0": "..."},
+    {"alias": "spare", "auth_token": "...", "ct0": "..."}
+  ]
+}
+```
+
+`twitter --as spare search golang` 这一次只用该账号，限流也不换号。`twitter --as main home` 看该账号的推荐。两个主账号或两个相同短名会在加载时失败。只有没有 JSON 文件时，才读取旧的 `accounts.txt`。
 
 然后读一条公开帖子：
 
@@ -73,13 +85,13 @@ twitter search golang -t Latest -n 1 --json
 
 ```bash
 install -d -m 700 /path/to/private/twitter-use
-export TWITTER_ACCOUNTS_FILE=/path/to/private/twitter-use/accounts.txt
+export TWITTER_ACCOUNTS_FILE=/path/to/private/twitter-use/accounts.json
 export TWITTER_ACCOUNT_STATE=/path/to/private/twitter-use/account_pool.json
 touch "$TWITTER_ACCOUNTS_FILE"
 chmod 600 "$TWITTER_ACCOUNTS_FILE"
 ```
 
-先把 `auth_token ct0` 对写入该文件，再执行公开读。只设置 `TWITTER_ACCOUNTS_FILE` 不会迁移状态文件；状态文件仍默认使用 `~/.twitter-use/account_pool.json`。这两个覆盖项不会选择私密读取或写入操作使用的身份。
+先把账号 JSON 写入该文件，再执行命令。只设置 `TWITTER_ACCOUNTS_FILE` 不会迁移状态文件；状态文件仍默认使用 `~/.twitter-use/account_pool.json`。
 
 ### 代理
 
@@ -97,13 +109,13 @@ export TWITTER_PROXY=http://proxy.example:8080
 
 ## 命令
 
-`~/.twitter-use/accounts.txt` 存在时，这些公开读走号池：`search`、`user`、`posts`、`tweet`、`article`、`followers`、`following`。`likes` 只有写了用户名才走号池。
+账号文件存在时，`pool` 为 true 的账号轮换处理这些公开读：`search`、`user`、`posts`、`tweet`、`article`、`followers`、`following`。`likes` 只有写了用户名才走号池。
 
-这些永远走当前身份，不进号池：`whoami`、`home`、`bookmarks`、不带用户名的 `likes`，以及 `like`、`unlike`、`bookmark`、`unbookmark`、`retweet`、`unretweet`、`follow`、`unfollow`。
+这些命令固定一个账号，不轮换：`whoami`、`home`、`bookmarks`、不带用户名的 `likes`，以及 `like`、`unlike`、`bookmark`、`unbookmark`、`retweet`、`unretweet`、`follow`、`unfollow`。
 
 `user`、`posts`、`followers`、`following`、`likes` 省略用户名时，用当前身份。写了用户名就走号池。
 
-身份按这个顺序选取：`TWITTER_AUTH_TOKEN` 和 `TWITTER_CT0`；`~/.twitter-use/identity` 里记下的标签；一个确实能返回用户名的浏览器会话。选中的浏览器标签会被记住。号池不是身份来源。
+这些命令的账号按这个顺序选取：`--as`；同时设置的 `TWITTER_AUTH_TOKEN` 和 `TWITTER_CT0`；`primary: true` 的账号；`~/.twitter-use/identity` 里记下的标签；一个确实能返回用户名的浏览器会话。选中的浏览器标签会被记住。主账号除非显式 `pool: true`，否则不参加公开轮换。平时不要导出那两个变量，否则会盖住主账号。
 
 列表共用 `-n` 和 `--cursor`。帖子时间线还有 `--since` 和 `--until`（`YYYY-MM-DD` 或 RFC3339）。`search` 把日期交给 X 的 `since:` / `until:`。其它时间线在本地碰到下界就停。`-n` 超过 500 会在发请求前失败。标准输出不是终端时，默认 JSON，正文不截断。
 
@@ -117,9 +129,10 @@ export TWITTER_PROXY=http://proxy.example:8080
 
 | 路径 | 内容 |
 | --- | --- |
-| `~/.twitter-use/accounts.txt` | 号池令牌。权限 `600`。 |
+| `~/.twitter-use/accounts.json` | 账号令牌、短名和角色。权限 `600`。 |
+| `~/.twitter-use/accounts.txt` | 旧号池行。只有没有 JSON 文件时才使用。 |
 | `~/.twitter-use/account_pool.json` | SHA-256 标签和冷却时间。没有令牌。 |
-| `~/.twitter-use/identity` | 上次选中的浏览器登录标签。 |
+| `~/.twitter-use/identity` | 没有主账号时，上次选中的浏览器登录标签。 |
 
 macOS 上，浏览器路径可能通过钥匙串读取 Cookie。Linux 使用 `secret-tool`。Windows 的应用绑定 Cookie 解密没有实现，请用环境变量。令牌只发给 X。
 

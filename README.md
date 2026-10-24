@@ -50,12 +50,24 @@ A machine without Go can use the binaries attached to a `v*` GitHub Release. The
 
 ## Quick start
 
-Create `~/.twitter-use/accounts.txt` with mode `600`. Each line is one account, `auth_token` then `ct0`, separated by a space. One line is a valid pool. Do not commit this file.
+Create `~/.twitter-use/accounts.json` with mode `600`. One account may be `primary`; it is the default for home, bookmarks, and writes, and it stays out of public rotation unless `pool` is true. Other accounts default to the pool. `alias` is an optional short name. Do not commit this file.
 
 ```bash
 install -d -m 700 ~/.twitter-use
-install -m 600 /dev/null ~/.twitter-use/accounts.txt
+install -m 600 /dev/null ~/.twitter-use/accounts.json
 ```
+
+```json
+{
+  "version": 1,
+  "accounts": [
+    {"alias": "main", "primary": true, "auth_token": "...", "ct0": "..."},
+    {"alias": "spare", "auth_token": "...", "ct0": "..."}
+  ]
+}
+```
+
+`twitter --as spare search golang` uses that account for one command and does not switch on a rate limit. `twitter --as main home` reads that account's recommendations. Two primaries, or two identical aliases, fail at load. A legacy `accounts.txt` is used only when `accounts.json` is absent.
 
 Then read one public post:
 
@@ -73,13 +85,13 @@ For a container or cloud workspace with a read-only home directory, set both poo
 
 ```bash
 install -d -m 700 /path/to/private/twitter-use
-export TWITTER_ACCOUNTS_FILE=/path/to/private/twitter-use/accounts.txt
+export TWITTER_ACCOUNTS_FILE=/path/to/private/twitter-use/accounts.json
 export TWITTER_ACCOUNT_STATE=/path/to/private/twitter-use/account_pool.json
 touch "$TWITTER_ACCOUNTS_FILE"
 chmod 600 "$TWITTER_ACCOUNTS_FILE"
 ```
 
-Add the `auth_token ct0` pairs to that file before running a public read. Setting `TWITTER_ACCOUNTS_FILE` alone does not move the state file; its default remains `~/.twitter-use/account_pool.json`. These overrides do not select the identity used by private reads or writes.
+Put the JSON accounts into that file before running a command. Setting `TWITTER_ACCOUNTS_FILE` alone does not move the state file; its default remains `~/.twitter-use/account_pool.json`.
 
 ### Proxies
 
@@ -97,13 +109,13 @@ Standard proxy environment values also accept `host:port`. Proxy credentials may
 
 ## Commands
 
-Public reads use the pool when `~/.twitter-use/accounts.txt` exists: `search`, `user`, `posts`, `tweet`, `article`, `followers`, `following`. `likes` uses the pool only when you pass a screen name.
+Public reads rotate through accounts with `pool: true` when an account file exists: `search`, `user`, `posts`, `tweet`, `article`, `followers`, `following`. `likes` uses the pool only when you pass a screen name.
 
-These use the current identity, never the pool: `whoami`, `home`, `bookmarks`, `likes` with no screen name, `like`, `unlike`, `bookmark`, `unbookmark`, `retweet`, `unretweet`, `follow`, `unfollow`.
+These use one selected account and do not rotate: `whoami`, `home`, `bookmarks`, `likes` with no screen name, `like`, `unlike`, `bookmark`, `unbookmark`, `retweet`, `unretweet`, `follow`, `unfollow`.
 
 Omit the screen name on `user`, `posts`, `followers`, `following`, and `likes` to mean the current identity. A name on those commands uses the pool.
 
-Identity is the first of: `TWITTER_AUTH_TOKEN` and `TWITTER_CT0`; the label stored in `~/.twitter-use/identity`; a browser session that actually returns a screen name. The chosen browser label is remembered. The pool is not a source of identity.
+The account for those commands is the first of: `--as`; `TWITTER_AUTH_TOKEN` and `TWITTER_CT0` together; the account with `primary: true`; the label stored in `~/.twitter-use/identity`; a browser session that actually returns a screen name. The chosen browser label is remembered. A primary account is not used for public rotation unless its `pool` field is true. Leave the two variables unset for normal use, or they hide the primary account.
 
 Shared list flags are `-n` and `--cursor`. Post timelines also take `--since` and `--until` (`YYYY-MM-DD` or RFC3339). `search` sends those dates to X as `since:` and `until:`. Other timelines stop locally at the lower bound. `-n` above 500 fails before any request. When stdout is not a terminal, the default output is JSON and text is not shortened.
 
@@ -117,9 +129,10 @@ Local files:
 
 | Path | What it holds |
 | --- | --- |
-| `~/.twitter-use/accounts.txt` | Pool tokens. Mode `600`. |
+| `~/.twitter-use/accounts.json` | Account tokens, aliases, and roles. Mode `600`. |
+| `~/.twitter-use/accounts.txt` | Legacy pool lines, used only when the JSON file is absent. |
 | `~/.twitter-use/account_pool.json` | SHA-256 labels and cooldowns. Not the tokens. |
-| `~/.twitter-use/identity` | Label of the browser login last chosen. |
+| `~/.twitter-use/identity` | Label of the browser login last chosen, when no primary is set. |
 
 On macOS the browser path can read cookies through the Keychain. On Linux it uses `secret-tool`. Windows app-bound cookie decryption is not implemented; use the environment variables there. Tokens are sent only to X.
 

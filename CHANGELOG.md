@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+`~/.twitter-use/accounts.json` replaces the text pool file. Each account has `auth_token`, `ct0`, an optional `alias`, at most one `primary`, and `pool`. A primary defaults to staying out of public rotation. Other accounts default to the pool. Legacy `accounts.txt` still loads when the JSON file is absent, and every line stays pool-only.
+
+`twitter --as <alias|label>` uses that account for one command and does not rotate or edit the file. Identity commands use `TWITTER_AUTH_TOKEN` and `TWITTER_CT0` when both are set, otherwise the primary account, otherwise a browser login. Public reads still rotate only through pooled accounts.
+
 ## 0.1.1
 
 Public reads honor `TWITTER_PROXY` and the standard proxy environment. An empty `TWITTER_PROXY` forces a direct connection. Invalid proxy URLs fail instead of falling through. Bootstrap requests drop credential headers when a redirect leaves HTTPS `x.com` or `twitter.com`. API errors redact known login and cookie values.

@@ -36,6 +36,7 @@ type app struct {
 	yaml       bool
 	compact    bool
 	verbose    bool
+	as         string
 	configPath string
 	out        io.Writer
 	err        io.Writer
@@ -60,6 +61,7 @@ func newRoot() *cobra.Command {
 	root.PersistentFlags().BoolVarP(&a.compact, "compact", "c", false, "Compact tweet JSON")
 	root.PersistentFlags().BoolVarP(&a.verbose, "verbose", "v", false, "Log request decisions to stderr")
 	root.PersistentFlags().StringVar(&a.configPath, "config", "", "Config YAML path")
+	root.PersistentFlags().StringVar(&a.as, "as", "", "Use this account alias or label for this command only")
 	addRead(root, a)
 	addWrite(root, a)
 	root.SetOut(os.Stdout)
@@ -84,14 +86,45 @@ func (a *app) open(cmd *cobra.Command, usePool bool) (*client.Client, config.Con
 		MaxRetries:     cfg.RateLimit.MaxRetries,
 		RetryBaseDelay: time.Duration(cfg.RateLimit.RetryBaseDelay * float64(time.Second)),
 	}
-	if usePool && accounts.Configured() {
-		pool, err := accounts.LoadFromEnv()
+	var roster *accounts.Roster
+	if a.as != "" || accounts.Configured() {
+		var err error
+		roster, err = accounts.LoadRoster()
+		if err != nil {
+			return nil, cfg, err
+		}
+	}
+	if a.as != "" {
+		account, err := roster.Resolve(a.as)
+		if err != nil {
+			return nil, cfg, err
+		}
+		log.Printf("Using requested account %s", accountName(account))
+		api, err := client.New(credentials(account), nil, rate)
+		return api, cfg, err
+	}
+	if usePool && roster != nil {
+		pool, err := roster.Pool()
 		if err != nil {
 			return nil, cfg, err
 		}
 		first := pool.Accounts[0]
-		api, err := client.New(client.Credentials{AuthToken: first.AuthToken, CT0: first.CT0}, pool, rate)
+		api, err := client.New(credentials(first), pool, rate)
 		return api, cfg, err
+	}
+	if !usePool {
+		if session, ok := auth.FromEnv(); ok {
+			log.Printf("Loaded cookies from environment variables")
+			api, err := client.New(session.Credentials(), nil, rate)
+			return api, cfg, err
+		}
+		if roster != nil {
+			if primary := roster.Primary(); primary != nil {
+				log.Printf("Using primary account %s", accountName(*primary))
+				api, err := client.New(credentials(*primary), nil, rate)
+				return api, cfg, err
+			}
+		}
 	}
 	session, err := a.identity(rate)
 	if err != nil {
@@ -99,6 +132,17 @@ func (a *app) open(cmd *cobra.Command, usePool bool) (*client.Client, config.Con
 	}
 	api, err := client.New(session.Credentials(), nil, rate)
 	return api, cfg, err
+}
+
+func credentials(account accounts.Account) client.Credentials {
+	return client.Credentials{AuthToken: account.AuthToken, CT0: account.CT0}
+}
+
+func accountName(account accounts.Account) string {
+	if account.Alias != "" {
+		return account.Alias
+	}
+	return account.Label
 }
 
 func (a *app) identity(rate client.Rate) (auth.Session, error) {
