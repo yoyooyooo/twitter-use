@@ -1,0 +1,108 @@
+<h1 align="center">twitter-use</h1>
+<p align="center">Read and act on X from the terminal, with public reads separated from the account you write as.</p>
+<p align="center">
+  <a href="./README.md">English</a> · <a href="./README.zh-CN.md">简体中文</a>
+</p>
+<p align="center">
+  <a href="#install">Install</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#commands">Commands</a> ·
+  <a href="#privacy">Privacy</a> ·
+  <a href="#limits">Limits</a>
+</p>
+
+An agent can page through public posts without spending the login that likes, bookmarks, and follows. Public reads rotate through a pool. Home, bookmarks, your own likes, and writes stay on one identity.
+
+A successful search looks like this. The list always includes why it stopped.
+
+```json
+{
+  "ok": true,
+  "schema_version": "1",
+  "data": [{ "id": "…", "text": "…" }],
+  "pagination": { "stop": "max_count", "nextCursor": "…" }
+}
+```
+
+`stop` is `max_count` when `-n` is reached. `nextCursor` is present even when it is empty. Pass it back as `--cursor` to continue. A stop of `since_reached` means a local time bound ended the page, not that X ran out of posts.
+
+## Install
+
+Go 1.27.2 or newer. Check with `go version`.
+
+From a checkout of this module:
+
+```bash
+go install ./cmd/twitter
+```
+
+The binary is named `twitter`. `go install` puts it in `GOBIN`, or in `$(go env GOPATH)/bin` when `GOBIN` is empty. That directory has to be on `PATH`.
+
+When this module is fetched from `github.com/yoyooyooo/twitter-use`:
+
+```bash
+go install github.com/yoyooyooo/twitter-use/cmd/twitter@latest
+```
+
+That command needs the repository to be available at the module path. A local checkout does not require it.
+
+A machine without Go can use the binaries attached to a `v*` GitHub Release. The names are `twitter-linux-amd64`, `twitter-linux-arm64`, `twitter-darwin-amd64`, and `twitter-darwin-arm64`, plus `SHA256SUMS`. Check the file, then put it on `PATH` as `twitter`.
+
+## Quick start
+
+Create `~/.twitter-use/accounts.txt` with mode `600`. Each line is one account, `auth_token` then `ct0`, separated by a space. One line is a valid pool. Do not commit this file.
+
+```bash
+install -d -m 700 ~/.twitter-use
+install -m 600 /dev/null ~/.twitter-use/accounts.txt
+```
+
+Then read one public post:
+
+```bash
+twitter search golang -t Latest -n 1 --json
+```
+
+Success is exit code 0 and `"ok": true`. With `-n 1` and a result, `pagination.stop` is `max_count`.
+
+If that file is missing and `TWITTER_ACCOUNTS_FILE` is unset, a public read uses one login instead of a pool. Set `TWITTER_AUTH_TOKEN` and `TWITTER_CT0`, or let the command try a browser session on this machine. A headless environment cannot unlock a macOS keychain.
+
+## Commands
+
+Public reads use the pool when `~/.twitter-use/accounts.txt` exists: `search`, `user`, `posts`, `tweet`, `article`, `followers`, `following`. `likes` uses the pool only when you pass a screen name.
+
+These use the current identity, never the pool: `whoami`, `home`, `bookmarks`, `likes` with no screen name, `like`, `unlike`, `bookmark`, `unbookmark`, `retweet`, `unretweet`, `follow`, `unfollow`.
+
+Omit the screen name on `user`, `posts`, `followers`, `following`, and `likes` to mean the current identity. A name on those commands uses the pool.
+
+Identity is the first of: `TWITTER_AUTH_TOKEN` and `TWITTER_CT0`; the label stored in `~/.twitter-use/identity`; a browser session that actually returns a screen name. The chosen browser label is remembered. The pool is not a source of identity.
+
+Shared list flags are `-n` and `--cursor`. Post timelines also take `--since` and `--until` (`YYYY-MM-DD` or RFC3339). `search` sends those dates to X as `since:` and `until:`. Other timelines stop locally at the lower bound. `-n` above 500 fails before any request. When stdout is not a terminal, the default output is JSON and text is not shortened.
+
+`TWITTER_ACCOUNTS_FILE` and `TWITTER_ACCOUNT_STATE` override the pool paths. `TWITTER_BROWSER` chooses which browser to try first. `TWITTER_PROXY` is an optional proxy.
+
+## Privacy
+
+The command talks to X, and it may download public web scripts from `abs.twimg.com` to build a client transaction id. If that id cannot be built, the request still goes out without the header. Query ids that return 404 can be refreshed from the public [twitter-openapi](https://github.com/fa0311/twitter-openapi) placeholder.
+
+Local files:
+
+| Path | What it holds |
+| --- | --- |
+| `~/.twitter-use/accounts.txt` | Pool tokens. Mode `600`. |
+| `~/.twitter-use/account_pool.json` | SHA-256 labels and cooldowns. Not the tokens. |
+| `~/.twitter-use/identity` | Label of the browser login last chosen. |
+
+On macOS the browser path can read cookies through the Keychain. On Linux it uses `secret-tool`. Windows app-bound cookie decryption is not implemented; use the environment variables there. Tokens are sent only to X.
+
+## Limits
+
+There is no command to post, reply, quote, or delete. List timelines are not implemented. A fetch stops at 500 items. Replies on a tweet can stop while X still reports a higher reply count; `pagination` says so instead of pretending the thread is complete. The TLS profile is Chrome 133 over HTTP/2 through [tls-client](https://github.com/bogdanfinn/tls-client). It is not a byte-for-byte browser impersonation.
+
+## Development
+
+```bash
+go test ./...
+```
+
+Contribution expectations are in [CONTRIBUTING.md](./CONTRIBUTING.md). Report a vulnerability through [SECURITY.md](./SECURITY.md). The change history is [CHANGELOG.md](./CHANGELOG.md).

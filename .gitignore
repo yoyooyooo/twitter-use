@@ -1,0 +1,8 @@
+/twitter
+/bin/
+*.exe
+*.test
+coverage.out
+accounts.txt
+*.json
+!testdata/**/*.json
