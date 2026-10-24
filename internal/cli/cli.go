@@ -69,6 +69,16 @@ func newRoot() *cobra.Command {
 
 func (a *app) open(cmd *cobra.Command, usePool bool) (*client.Client, config.Config, error) {
 	cfg := config.Load(a.configPath)
+	// Validate list limits before loading credentials or bootstrapping a client.
+	if cmd.Flags().Lookup("max") != nil {
+		max, err := cmd.Flags().GetInt("max")
+		if err != nil {
+			return nil, cfg, err
+		}
+		if _, err := fetchCount(max, cfg); err != nil {
+			return nil, cfg, err
+		}
+	}
 	rate := client.Rate{
 		RequestDelay:   time.Duration(cfg.RateLimit.RequestDelay * float64(time.Second)),
 		MaxRetries:     cfg.RateLimit.MaxRetries,
@@ -83,7 +93,6 @@ func (a *app) open(cmd *cobra.Command, usePool bool) (*client.Client, config.Con
 		api, err := client.New(client.Credentials{AuthToken: first.AuthToken, CT0: first.CT0}, pool, rate)
 		return api, cfg, err
 	}
-	_ = cmd
 	session, err := a.identity(rate)
 	if err != nil {
 		return nil, cfg, err
