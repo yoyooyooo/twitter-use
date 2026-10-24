@@ -67,6 +67,34 @@ Success is exit code 0 and `"ok": true`. With `-n 1` and a result, `pagination.s
 
 If that file is missing and `TWITTER_ACCOUNTS_FILE` is unset, a public read uses one login instead of a pool. Set `TWITTER_AUTH_TOKEN` and `TWITTER_CT0`, or let the command try a browser session on this machine. A headless environment cannot unlock a macOS keychain.
 
+### Read-only home directories
+
+For a container or cloud workspace with a read-only home directory, set both pool paths to a writable private directory outside the checkout. Replace `/path/to/private/twitter-use` below with your directory:
+
+```bash
+install -d -m 700 /path/to/private/twitter-use
+export TWITTER_ACCOUNTS_FILE=/path/to/private/twitter-use/accounts.txt
+export TWITTER_ACCOUNT_STATE=/path/to/private/twitter-use/account_pool.json
+touch "$TWITTER_ACCOUNTS_FILE"
+chmod 600 "$TWITTER_ACCOUNTS_FILE"
+```
+
+Add the `auth_token ct0` pairs to that file before running a public read. Setting `TWITTER_ACCOUNTS_FILE` alone does not move the state file; its default remains `~/.twitter-use/account_pool.json`. These overrides do not select the identity used by private reads or writes.
+
+### Proxies
+
+If `TWITTER_PROXY` is set, it overrides environment proxy discovery for every request. An explicitly empty value selects direct connections. Otherwise, HTTP requests use `HTTP_PROXY` / `http_proxy`, HTTPS requests use `HTTPS_PROXY` / `https_proxy`, and `NO_PROXY` / `no_proxy` can bypass the proxy for matching destinations. Without a matching proxy setting, connections are direct.
+
+Environment discovery uses Go's `httpproxy` rules, including hostname, port, IP/CIDR, and `*` bypass entries. `NO_PROXY` applies only to environment discovery, not an explicit `TWITTER_PROXY`. Redirect destinations are evaluated separately. Invalid proxy URLs fail with a configuration error rather than silently falling back to a direct connection.
+
+To explicitly select a proxy, use a URL with a scheme and host:
+
+```bash
+export TWITTER_PROXY=http://proxy.example:8080
+```
+
+Standard proxy environment values also accept `host:port`. Proxy credentials may be included in the URL; do not commit or log them.
+
 ## Commands
 
 Public reads use the pool when `~/.twitter-use/accounts.txt` exists: `search`, `user`, `posts`, `tweet`, `article`, `followers`, `following`. `likes` uses the pool only when you pass a screen name.
@@ -94,6 +122,8 @@ Local files:
 | `~/.twitter-use/identity` | Label of the browser login last chosen. |
 
 On macOS the browser path can read cookies through the Keychain. On Linux it uses `secret-tool`. Windows app-bound cookie decryption is not implemented; use the environment variables there. Tokens are sent only to X.
+
+Bootstrap requests attach cookies only to HTTPS `x.com` or `twitter.com`. Redirects outside these hosts, to HTTP, or to a nonstandard port drop credential headers. API error messages redact known login and cookie values before truncation or display.
 
 ## Limits
 

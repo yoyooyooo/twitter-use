@@ -66,6 +66,41 @@ func TestExplicitMissingFileDoesNotFallBack(t *testing.T) {
 	}
 }
 
+func TestPoolPathOverridesDoNotNeedHomeDirectory(t *testing.T) {
+	dir := t.TempDir()
+	// A file in place of HOME makes accidental default-path access fail.
+	home := filepath.Join(dir, "not-a-directory")
+	if err := os.WriteFile(home, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	accountPath := filepath.Join(dir, "private", "accounts.txt")
+	statePath := filepath.Join(dir, "state", "account_pool.json")
+	if err := os.MkdirAll(filepath.Dir(accountPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(accountPath, []byte("alpha ct0a\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(FileEnv, accountPath)
+	t.Setenv(StateEnv, statePath)
+	pool, err := LoadFromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	account, err := pool.Acquire("TweetDetail")
+	if err != nil || account == nil || account.Label != Label("alpha") {
+		t.Fatalf("acquire = %v, %v", account, err)
+	}
+	if pool.State != statePath {
+		t.Fatalf("state path = %q, want %q", pool.State, statePath)
+	}
+	if _, err := os.Stat(statePath); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestOperationKey(t *testing.T) {
 	got := OperationKey("https://x.com/i/api/graphql/abc/TweetDetail?variables=1")
 	if got != "TweetDetail" {

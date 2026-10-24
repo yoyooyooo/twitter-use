@@ -153,7 +153,8 @@ func (c *Client) graphqlPost(operation string, variables map[string]any, feature
 	return nil, err
 }
 
-func (c *Client) api(rawURL, method string, body map[string]any) (map[string]any, error) {
+func (c *Client) api(rawURL, method string, body map[string]any) (result map[string]any, err error) {
+	defer func() { err = c.redactError(err) }()
 	operation := accounts.OperationKey(rawURL)
 	switches := 0
 	maxSwitches := 0
@@ -226,14 +227,14 @@ func (c *Client) api(rawURL, method string, body map[string]any) (map[string]any
 			continue
 		}
 		if status >= 400 {
-			return nil, errs.API(status, clip(string(payload), 500))
+			return nil, errs.API(status, clip(c.redact(string(payload)), 500))
 		}
 		if len(bytes.TrimSpace(payload)) == 0 {
 			return map[string]any{}, nil
 		}
 		var parsed any
 		if err := json.Unmarshal(payload, &parsed); err != nil {
-			return nil, errs.API(status, "Twitter API returned non-JSON: "+clip(string(payload), 200))
+			return nil, errs.API(status, "Twitter API returned non-JSON: "+clip(c.redact(string(payload)), 200))
 		}
 		obj, _ := parsed.(map[string]any)
 		if obj == nil {
@@ -316,22 +317,17 @@ func (c *Client) backoff(attempt int) {
 	c.sleep(wait)
 }
 
-func (c *Client) fetchText(rawURL string) (string, error) {
+func (c *Client) fetchText(rawURL string) (text string, err error) {
+	defer func() { err = c.redactError(err) }()
 	// Homepage and script fetches stay off the API client. A failed
 	// bootstrap otherwise poisons the connection used for GraphQL.
 	transport, err := newBootstrap()
 	if err != nil {
 		return "", err
 	}
-	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	req, err := c.bootstrapRequest(rawURL)
 	if err != nil {
 		return "", err
-	}
-	req.Header.Set("User-Agent", userAgent())
-	if strings.Contains(rawURL, "://x.com") || strings.Contains(rawURL, "://twitter.com") {
-		if cookie := c.cookieHeader(); cookie != "" {
-			req.Header.Set("Cookie", cookie)
-		}
 	}
 	resp, err := transport.Do(req)
 	if err != nil {
@@ -339,6 +335,20 @@ func (c *Client) fetchText(rawURL string) (string, error) {
 	}
 	body, err := readBody(resp)
 	return string(body), err
+}
+
+func (c *Client) bootstrapRequest(rawURL string) (*http.Request, error) {
+	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", userAgent())
+	if credentialURL(req.URL) {
+		if cookie := c.cookieHeader(); cookie != "" {
+			req.Header.Set("Cookie", cookie)
+		}
+	}
+	return req, nil
 }
 
 func clip(text string, n int) string {

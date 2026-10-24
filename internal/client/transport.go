@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	http "github.com/bogdanfinn/fhttp"
 	tls_client "github.com/bogdanfinn/tls-client"
@@ -30,13 +31,30 @@ func newTransport() (Doer, error) { return buildTransport(30) }
 func newBootstrap() (Doer, error) { return buildTransport(8) }
 
 func buildTransport(timeout int) (Doer, error) {
+	resolve, err := proxyFromEnvironment()
+	if err != nil {
+		return nil, err
+	}
+	return &http.Client{
+		Transport: &proxyTransport{
+			resolve: resolve,
+			create:  func(proxy string) (Doer, error) { return buildProxyClient(timeout, proxy) },
+		},
+		Timeout:       time.Duration(timeout) * time.Second,
+		CheckRedirect: checkRedirect,
+	}, nil
+}
+
+func buildProxyClient(timeout int, proxy string) (Doer, error) {
 	opts := []tls_client.HttpClientOption{
 		tls_client.WithTimeoutSeconds(timeout),
 		tls_client.WithClientProfile(profiles.Chrome_133),
 		tls_client.WithDisableHttp3(),
 		tls_client.WithCookieJar(nil),
+		// The outer client follows redirects so every hop resolves its own proxy.
+		tls_client.WithNotFollowRedirects(),
 	}
-	if proxy := strings.TrimSpace(os.Getenv("TWITTER_PROXY")); proxy != "" {
+	if proxy != "" {
 		opts = append(opts, tls_client.WithProxyUrl(proxy))
 	}
 	httpClient, err := tls_client.NewHttpClient(tls_client.NewNoopLogger(), opts...)

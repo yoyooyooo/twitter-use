@@ -67,6 +67,34 @@ twitter search golang -t Latest -n 1 --json
 
 这个文件不存在，且没有设置 `TWITTER_ACCOUNTS_FILE` 时，公开读改用一个登录，而不是号池。设置 `TWITTER_AUTH_TOKEN` 和 `TWITTER_CT0`，或者让命令在这台机器上尝试浏览器会话。没有界面的环境解不开 macOS 钥匙串。
 
+### 主目录只读时
+
+容器或云工作区的主目录只读时，把两个号池路径都指向仓库外可写的私有目录。将下面的 `/path/to/private/twitter-use` 换成自己的目录：
+
+```bash
+install -d -m 700 /path/to/private/twitter-use
+export TWITTER_ACCOUNTS_FILE=/path/to/private/twitter-use/accounts.txt
+export TWITTER_ACCOUNT_STATE=/path/to/private/twitter-use/account_pool.json
+touch "$TWITTER_ACCOUNTS_FILE"
+chmod 600 "$TWITTER_ACCOUNTS_FILE"
+```
+
+先把 `auth_token ct0` 对写入该文件，再执行公开读。只设置 `TWITTER_ACCOUNTS_FILE` 不会迁移状态文件；状态文件仍默认使用 `~/.twitter-use/account_pool.json`。这两个覆盖项不会选择私密读取或写入操作使用的身份。
+
+### 代理
+
+设置了 `TWITTER_PROXY` 时，所有请求都优先使用该配置，不再自动选择环境代理。显式设置为空字符串表示直连。未设置时，HTTP 请求使用 `HTTP_PROXY` / `http_proxy`，HTTPS 请求使用 `HTTPS_PROXY` / `https_proxy`，匹配 `NO_PROXY` / `no_proxy` 的目标绕过代理。没有匹配的代理配置时直连。
+
+环境代理遵循 Go 的 `httpproxy` 规则，支持主机名、端口、IP/CIDR 和 `*` 绕过项。`NO_PROXY` 只作用于自动选择环境代理，不覆盖显式的 `TWITTER_PROXY`。重定向后的每个目标会重新判断。代理 URL 无效时返回配置错误，不会静默退回直连。
+
+显式指定代理时，使用包含协议和主机的 URL：
+
+```bash
+export TWITTER_PROXY=http://proxy.example:8080
+```
+
+标准代理环境变量也接受 `host:port`。URL 可以包含代理认证信息，不要将其提交到仓库或写入日志。
+
 ## 命令
 
 `~/.twitter-use/accounts.txt` 存在时，这些公开读走号池：`search`、`user`、`posts`、`tweet`、`article`、`followers`、`following`。`likes` 只有写了用户名才走号池。
@@ -94,6 +122,8 @@ twitter search golang -t Latest -n 1 --json
 | `~/.twitter-use/identity` | 上次选中的浏览器登录标签。 |
 
 macOS 上，浏览器路径可能通过钥匙串读取 Cookie。Linux 使用 `secret-tool`。Windows 的应用绑定 Cookie 解密没有实现，请用环境变量。令牌只发给 X。
+
+初始化请求只向 HTTPS 的 `x.com` 或 `twitter.com` 附带 Cookie。重定向到其他主机、HTTP 或非标准端口时，会移除凭据请求头。API 错误信息在截断或显示之前，会将已知的登录凭据和 Cookie 值脱敏。
 
 ## 限制
 
