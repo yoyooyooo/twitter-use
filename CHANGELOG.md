@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.4
+
 `twitter skill` prints the agent guide for this binary. `SKILL.md` tells an agent to run that command, and carries the same guide when the installed binary is older.
 
 ## 0.1.3
