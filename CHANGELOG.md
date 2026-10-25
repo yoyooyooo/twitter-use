@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+`twitter skill` prints the agent guide for this binary. `SKILL.md` tells an agent to run that command, and carries the same guide when the installed binary is older.
+
 ## 0.1.3
 
 `install.sh` downloads a GitHub Release binary, checks `SHA256SUMS`, and writes `~/.local/bin/twitter`. Pass a tag to pin one release.

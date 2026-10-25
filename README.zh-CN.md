@@ -103,6 +103,10 @@ export TWITTER_PROXY=http://proxy.example:8080
 
 标准代理环境变量也接受 `host:port`。URL 可以包含代理认证信息，不要将其提交到仓库或写入日志。
 
+## Agent
+
+第一条命令之前先跑 `twitter skill`。它打印这份二进制自己的账号和翻页规则。For You 是 `twitter home`；主账号已经是默认身份，`--as` 只用于覆盖。
+
 ## 命令
 
 账号文件存在时，`pool` 为 true 的账号轮换处理这些公开读：`search`、`user`、`posts`、`tweet`、`article`、`followers`、`following`。`likes` 只有写了用户名才走号池。

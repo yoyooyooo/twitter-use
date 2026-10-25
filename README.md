@@ -103,6 +103,10 @@ export TWITTER_PROXY=http://proxy.example:8080
 
 Standard proxy environment values also accept `host:port`. Proxy credentials may be included in the URL; do not commit or log them.
 
+## Agents
+
+Run `twitter skill` before the first command. It prints the account and pagination rules for this binary. For You is `twitter home`; the primary account is already selected, and `--as` is only an override.
+
 ## Commands
 
 Public reads rotate through accounts with `pool: true` when an account file exists: `search`, `user`, `posts`, `tweet`, `article`, `followers`, `following`. `likes` uses the pool only when you pass a screen name.

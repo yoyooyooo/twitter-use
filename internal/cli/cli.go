@@ -64,6 +64,7 @@ func newRoot() *cobra.Command {
 	root.PersistentFlags().StringVar(&a.as, "as", "", "Use this account alias or label for this command only")
 	addRead(root, a)
 	addWrite(root, a)
+	addSkill(root)
 	root.SetOut(os.Stdout)
 	root.SetErr(os.Stderr)
 	return root

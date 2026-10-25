@@ -17,7 +17,7 @@ func TestCommandSurface(t *testing.T) {
 	slices.Sort(names)
 	want := []string{
 		"article", "bookmark", "bookmarks", "bookmarks folders", "follow", "followers", "following",
-		"home", "like", "likes", "posts", "retweet", "search", "tweet", "unbookmark", "unfollow",
+		"home", "like", "likes", "posts", "retweet", "search", "skill", "tweet", "unbookmark", "unfollow",
 		"unlike", "unretweet", "user", "whoami",
 	}
 	if !slices.Equal(names, want) {
