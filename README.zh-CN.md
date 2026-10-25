@@ -28,25 +28,21 @@ Agent 翻公开帖子时，不必消耗那个用来点赞、加书签和关注�
 
 ## 安装
 
-需要 Go 1.27.2 或更新。用 `go version` 确认。
+直接下载最新的静态二进制。脚本先确定 GitHub Release，核对 `SHA256SUMS` 之后再写入 `~/.local/bin/twitter`。设置 `GH_TOKEN` 或 `GITHUB_TOKEN` 时，版本号改走 releases API。
 
-在本模块的检出目录里：
+```bash
+curl -fsSL https://raw.githubusercontent.com/yoyooyooo/twitter-use/main/install.sh | sh
+```
+
+固定版本用 `sh -s -- v0.1.2`。`TWITTER_INSTALL_DIR` 可以改安装目录。支持 `twitter-linux-amd64`、`twitter-linux-arm64`、`twitter-darwin-amd64`、`twitter-darwin-arm64`。
+
+在检出目录里用 Go 1.27.2 或更新版本编译：
 
 ```bash
 go install ./cmd/twitter
 ```
 
 二进制名字是 `twitter`。`go install` 把它放到 `GOBIN`；`GOBIN` 为空时放到 `$(go env GOPATH)/bin`。这个目录需要在 `PATH` 里。
-
-模块可以从 `github.com/yoyooyooo/twitter-use` 拉取时：
-
-```bash
-go install github.com/yoyooyooo/twitter-use/cmd/twitter@latest
-```
-
-这条命令要求仓库已经在该模块路径上。本地检出不依赖它。
-
-没有 Go 的机器可以用 `v*` GitHub Release 上的二进制。文件名是 `twitter-linux-amd64`、`twitter-linux-arm64`、`twitter-darwin-amd64`、`twitter-darwin-arm64`，以及 `SHA256SUMS`。核对校验和之后，把对应文件放到 `PATH` 里并命名为 `twitter`。
 
 ## 第一次成功
 

@@ -28,25 +28,21 @@ A successful search looks like this. The list always includes why it stopped.
 
 ## Install
 
-Go 1.27.2 or newer. Check with `go version`.
+Download the latest static binary. The script resolves the GitHub Release, checks `SHA256SUMS`, then writes `~/.local/bin/twitter`. Set `GH_TOKEN` or `GITHUB_TOKEN` to resolve the tag through the releases API.
 
-From a checkout of this module:
+```bash
+curl -fsSL https://raw.githubusercontent.com/yoyooyooo/twitter-use/main/install.sh | sh
+```
+
+Pin a release with `sh -s -- v0.1.2`. `TWITTER_INSTALL_DIR` changes the destination. Supported files are `twitter-linux-amd64`, `twitter-linux-arm64`, `twitter-darwin-amd64`, and `twitter-darwin-arm64`.
+
+From a checkout, with Go 1.27.2 or newer:
 
 ```bash
 go install ./cmd/twitter
 ```
 
-The binary is named `twitter`. `go install` puts it in `GOBIN`, or in `$(go env GOPATH)/bin` when `GOBIN` is empty. That directory has to be on `PATH`.
-
-When this module is fetched from `github.com/yoyooyooo/twitter-use`:
-
-```bash
-go install github.com/yoyooyooo/twitter-use/cmd/twitter@latest
-```
-
-That command needs the repository to be available at the module path. A local checkout does not require it.
-
-A machine without Go can use the binaries attached to a `v*` GitHub Release. The names are `twitter-linux-amd64`, `twitter-linux-arm64`, `twitter-darwin-amd64`, and `twitter-darwin-arm64`, plus `SHA256SUMS`. Check the file, then put it on `PATH` as `twitter`.
+`go install` names the binary `twitter` and puts it in `GOBIN`, or in `$(go env GOPATH)/bin` when `GOBIN` is empty. That directory has to be on `PATH`.
 
 ## Quick start
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+`install.sh` downloads a GitHub Release binary, checks `SHA256SUMS`, and writes `~/.local/bin/twitter`. Pass a tag to pin one release. This does not publish a new binary.
+
 ## 0.1.2
 
 `~/.twitter-use/accounts.json` replaces the text pool file. Each account has `auth_token`, `ct0`, an optional `alias`, at most one `primary`, and `pool`. A primary defaults to staying out of public rotation. Other accounts default to the pool. Legacy `accounts.txt` still loads when the JSON file is absent, and every line stays pool-only.
