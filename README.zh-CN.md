@@ -34,7 +34,7 @@ Agent 翻公开帖子时，不必消耗那个用来点赞、加书签和关注�
 curl -fsSL https://raw.githubusercontent.com/yoyooyooo/twitter-use/main/install.sh | sh
 ```
 
-固定版本用 `sh -s -- v0.1.2`。`TWITTER_INSTALL_DIR` 可以改安装目录。支持 `twitter-linux-amd64`、`twitter-linux-arm64`、`twitter-darwin-amd64`、`twitter-darwin-arm64`。
+固定版本用 `sh -s -- v0.1.3`。`TWITTER_INSTALL_DIR` 可以改安装目录。支持 `twitter-linux-amd64`、`twitter-linux-arm64`、`twitter-darwin-amd64`、`twitter-darwin-arm64`。
 
 在检出目录里用 Go 1.27.2 或更新版本编译：
 

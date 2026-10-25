@@ -2,9 +2,11 @@
 
 ## Unreleased
 
-`install.sh` downloads a GitHub Release binary, checks `SHA256SUMS`, and writes `~/.local/bin/twitter`. Pass a tag to pin one release. This does not publish a new binary.
+## 0.1.3
 
-`twitter tweet` keeps reply links that the GraphQL payload already contained: `inReplyToStatusId`, `inReplyToUserId`, `conversationId`, `quotedStatusId`, and `selfThreadId`. Its JSON data is `focal`, `ancestors`, and `replies` instead of one flat list. An unknown post id is `not_found`. Tweet detail also follows a `ShowMoreThreads` cursor after the bottom cursor ends. `posts --with-replies` uses `UserTweetsAndReplies`. A search time slice did not return more quote posts than one unsplit query, so it is not a flag.
+`install.sh` downloads a GitHub Release binary, checks `SHA256SUMS`, and writes `~/.local/bin/twitter`. Pass a tag to pin one release.
+
+`twitter tweet` keeps reply links that the GraphQL payload already contained: `inReplyToStatusId`, `inReplyToUserId`, `conversationId`, `quotedStatusId`, and `selfThreadId`. Its JSON data is `focal`, `ancestors`, and `replies` instead of one flat list. An unknown post id is `not_found`. Tweet detail also follows a `ShowMoreThreads` cursor after the bottom cursor ends. `posts --with-replies` uses `UserTweetsAndReplies`.
 
 ## 0.1.2
 

@@ -34,7 +34,7 @@ Download the latest static binary. The script resolves the GitHub Release, check
 curl -fsSL https://raw.githubusercontent.com/yoyooyooo/twitter-use/main/install.sh | sh
 ```
 
-Pin a release with `sh -s -- v0.1.2`. `TWITTER_INSTALL_DIR` changes the destination. Supported files are `twitter-linux-amd64`, `twitter-linux-arm64`, `twitter-darwin-amd64`, and `twitter-darwin-arm64`.
+Pin a release with `sh -s -- v0.1.3`. `TWITTER_INSTALL_DIR` changes the destination. Supported files are `twitter-linux-amd64`, `twitter-linux-arm64`, `twitter-darwin-amd64`, and `twitter-darwin-arm64`.
 
 From a checkout, with Go 1.27.2 or newer:
 
