@@ -136,7 +136,7 @@ macOS 上，浏览器路径可能通过钥匙串读取 Cookie。Linux 使用 `se
 
 ## 限制
 
-没有发帖、回复、引用或删除。列表时间线没有实现。一次获取最多 500 条。一条帖子的回复可能在 X 报告的回复数还更高时停下；`pagination` 会说明这一点，而不是假装线程已经完整。TLS 使用 [tls-client](https://github.com/bogdanfinn/tls-client) 的 Chrome 133、HTTP/2。它不是与浏览器逐字节相同的伪装。
+`twitter tweet` 返回 `focal`、`ancestors` 和 `replies`，并会继续翻折叠的线程 cursor。X 如果带了回复和会话 id，每条帖子都会保留。`posts --with-replies` 包含这个账号自己的回复。没有发帖、回复、引用或删除。列表时间线没有实现。一次获取最多 500 条。一条帖子的回复可能在 X 报告的回复数还更高时停下；`pagination` 会说明这一点，而不是假装线程已经完整。TLS 使用 [tls-client](https://github.com/bogdanfinn/tls-client) 的 Chrome 133、HTTP/2。它不是与浏览器逐字节相同的伪装。
 
 ## 开发
 

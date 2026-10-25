@@ -148,6 +148,7 @@ func userCmd(a *app) *cobra.Command {
 
 func postsCmd(a *app) *cobra.Command {
 	var f pageFlags
+	var withReplies bool
 	cmd := &cobra.Command{Use: "posts [screen_name]", Short: "Posts by a user. Omit the name to use the current identity", Args: cobra.MaximumNArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		screen := screenArg(args)
 		return a.tweets(cmd, screen != "", postsLabel(screen), f.max, f.full, f.output, func(api *client.Client, count int) ([]model.Tweet, error) {
@@ -158,10 +159,14 @@ func postsCmd(a *app) *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
+			if withReplies {
+				return api.UserTweetsAndReplies(id, count, f.cursor)
+			}
 			return api.UserTweets(id, count, f.cursor)
 		})
 	}}
 	addPageFlags(cmd, &f, true)
+	cmd.Flags().BoolVar(&withReplies, "with-replies", false, "Include replies from this account")
 	return cmd
 }
 
@@ -371,19 +376,33 @@ func (a *app) userID(api *client.Client, screen string) (string, error) {
 }
 
 func (a *app) thread(api *client.Client, tweets []model.Tweet, id, ranking string, full bool) error {
+	if len(tweets) == 0 {
+		return a.fail(errs.NotFound("No post \"" + id + "\""))
+	}
 	notice := pagination(api, false)
 	notice["ranking"] = ranking
+	focal, ancestors, replies := model.SplitThread(tweets, id)
 	for _, tweet := range tweets {
 		if tweet.ID == id && tweet.Metrics.Replies > 0 {
 			notice["platformReplies"] = tweet.Metrics.Replies
 		}
 	}
-	payload := output.Success(output.Tweets(tweets))
+	var focalJSON any
+	if focal != nil {
+		focalJSON = output.Tweet(*focal)
+	}
+	payload := output.Success(map[string]any{
+		"focal": focalJSON, "ancestors": output.Tweets(ancestors), "replies": output.Tweets(replies),
+	})
 	payload["pagination"] = notice
 	if err := a.emit(payload); err == nil {
 		return nil
 	}
-	printTweets(a.out, "thread "+id, tweets, full)
+	if focal != nil {
+		printTweets(a.out, "focal "+id, []model.Tweet{*focal}, full)
+	}
+	printTweets(a.out, "ancestors "+id, ancestors, full)
+	printTweets(a.out, "replies "+id, replies, full)
 	return nil
 }
 

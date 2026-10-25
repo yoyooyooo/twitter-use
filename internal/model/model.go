@@ -29,22 +29,27 @@ type TweetMedia struct {
 
 // Tweet is one status, including a quoted status when present.
 type Tweet struct {
-	ID               string
-	Text             string
-	Author           Author
-	Metrics          Metrics
-	CreatedAt        string
-	Media            []TweetMedia
-	URLs             []string
-	IsRetweet        bool
-	Lang             string
-	RetweetedBy      string
-	QuotedTweet      *Tweet
-	Score            *float64
-	ArticleTitle     *string
-	ArticleText      *string
-	IsSubscriberOnly bool
-	IsPromoted       bool
+	ID                string
+	Text              string
+	Author            Author
+	Metrics           Metrics
+	CreatedAt         string
+	Media             []TweetMedia
+	URLs              []string
+	IsRetweet         bool
+	Lang              string
+	RetweetedBy       string
+	QuotedTweet       *Tweet
+	InReplyToStatusID string
+	InReplyToUserID   string
+	ConversationID    string
+	QuotedStatusID    string
+	SelfThreadID      string
+	Score             *float64
+	ArticleTitle      *string
+	ArticleText       *string
+	IsSubscriberOnly  bool
+	IsPromoted        bool
 }
 
 // BookmarkFolder is a named bookmark collection.

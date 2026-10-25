@@ -64,6 +64,37 @@ func TestSwitchesAccountOn429AndRetriesSameRequest(t *testing.T) {
 	}
 }
 
+func TestTweetDetailFollowsShowMoreThreads(t *testing.T) {
+	first := timelineBody("focal", "ShowMoreThreads", "more")
+	reply := timelineBody("reply", "", "")
+	transport := &scripted{calls: []script{{status: 200, body: first}, {status: 200, body: reply}}}
+	api, err := New(Credentials{AuthToken: "alpha", CT0: "ct0a"}, nil, Rate{}, WithHTTP(transport), WithoutTransaction(), WithSleep(func(time.Duration) {}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tweets, err := api.TweetDetail("focal", 10, "Relevance", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tweets) != 2 || tweets[0].ID != "focal" || tweets[1].ID != "reply" {
+		t.Fatalf("%#v", tweets)
+	}
+	if len(transport.calls) != 0 {
+		t.Fatal("unused script")
+	}
+}
+
+func timelineBody(id, cursorType, cursor string) string {
+	cursorEntry := ""
+	if cursorType != "" {
+		cursorEntry = `,{"entryId":"cursor","content":{"cursorType":"` + cursorType + `","value":"` + cursor + `"}}`
+	}
+	return `{"data":{"tweetResult":{"result":{"timeline":{"instructions":[{"entries":[` +
+		`{"entryId":"tweet-` + id + `","content":{"itemContent":{"tweet_results":{"result":{"rest_id":"` + id + `","core":{"user_results":{"result":{"rest_id":"9","core":{"screen_name":"ada","name":"Ada"}}}},"legacy":{"full_text":"` + id + `","conversation_id_str":"focal"}}}}}}` +
+		cursorEntry +
+		`]}]}}}}}`
+}
+
 func TestCeiling(t *testing.T) {
 	if _, err := EnforceCount(501); err == nil {
 		t.Fatal("ceiling accepted 501")

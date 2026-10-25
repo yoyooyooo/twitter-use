@@ -22,6 +22,7 @@ type timelineSpec struct {
 	promoted     bool
 	toggles      map[string]any
 	cursor       string
+	branchCursor []string
 }
 
 func (c *Client) timeline(spec timelineSpec) ([]model.Tweet, error) {
@@ -37,6 +38,11 @@ func (c *Client) timeline(spec timelineSpec) ([]model.Tweet, error) {
 	var tweets []model.Tweet
 	seen := map[string]struct{}{}
 	cursor := spec.cursor
+	seenCursor := map[string]bool{}
+	if cursor != "" {
+		seenCursor[cursor] = true
+	}
+	var branch []string
 	continuation := ""
 	stop := ""
 	emptyPages := 0
@@ -75,7 +81,17 @@ func (c *Client) timeline(spec timelineSpec) ([]model.Tweet, error) {
 			}
 			return tweets, err
 		}
-		page, next := parser.Timeline(data, spec.instructions(data))
+		instructions := spec.instructions(data)
+		page, next := parser.Timeline(data, instructions)
+		for _, kind := range spec.branchCursor {
+			for _, value := range parser.Cursors(instructions)[kind] {
+				if value == "" || seenCursor[value] {
+					continue
+				}
+				seenCursor[value] = true
+				branch = append(branch, value)
+			}
+		}
 		added := 0
 		skippedNew := 0
 		halt := false
@@ -105,6 +121,13 @@ func (c *Client) timeline(spec timelineSpec) ([]model.Tweet, error) {
 			break
 		}
 		if next == "" {
+			if len(branch) > 0 {
+				cursor = branch[0]
+				branch = branch[1:]
+				continuation = cursor
+				c.pageDelay()
+				continue
+			}
 			continuation = ""
 			if len(tweets) >= count {
 				stop = "complete"

@@ -12,6 +12,8 @@ func TestTweetAndTimeline(t *testing.T) {
 		"legacy": map[string]any{
 			"full_text": "hello", "created_at": "Sat Mar 08 12:00:00 +0000 2026",
 			"favorite_count": "2", "retweet_count": 1, "reply_count": 3, "quote_count": 0, "bookmark_count": 4, "lang": "en",
+			"in_reply_to_status_id_str": "7", "in_reply_to_user_id_str": "8", "conversation_id_str": "6",
+			"quoted_status_id_str": "5", "self_thread": map[string]any{"id_str": "4"},
 			"entities": map[string]any{"urls": []any{map[string]any{"expanded_url": "https://example.com"}}},
 		},
 		"views": map[string]any{"count": "10"},
@@ -31,6 +33,13 @@ func TestTweetAndTimeline(t *testing.T) {
 	tweet := tweets[0]
 	if tweet.Author.ScreenName != "ada" || tweet.Text != "hello" || tweet.Metrics.Likes != 2 || tweet.Metrics.Views != 10 || tweet.URLs[0] != "https://example.com" || !tweet.Author.Verified {
 		t.Fatalf("%#v", tweet)
+	}
+	if tweet.InReplyToStatusID != "7" || tweet.InReplyToUserID != "8" || tweet.ConversationID != "6" || tweet.QuotedStatusID != "5" || tweet.SelfThreadID != "4" {
+		t.Fatalf("relations=%s %s %s %s %s", tweet.InReplyToStatusID, tweet.InReplyToUserID, tweet.ConversationID, tweet.QuotedStatusID, tweet.SelfThreadID)
+	}
+	cursors := Cursors(Instructions(data, "data", "home", "home_timeline_urt", "instructions"))
+	if len(cursors["Bottom"]) != 1 || cursors["Bottom"][0] != "next" {
+		t.Fatalf("cursors=%v", cursors)
 	}
 }
 

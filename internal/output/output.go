@@ -103,6 +103,11 @@ func Tweet(tweet model.Tweet) map[string]any {
 		"retweetedBy": emptyNil(tweet.RetweetedBy), "lang": tweet.Lang, "score": tweet.Score,
 		"isSubscriberOnly": tweet.IsSubscriberOnly, "isPromoted": tweet.IsPromoted,
 	}
+	putText(data, "inReplyToStatusId", tweet.InReplyToStatusID)
+	putText(data, "inReplyToUserId", tweet.InReplyToUserID)
+	putText(data, "conversationId", tweet.ConversationID)
+	putText(data, "quotedStatusId", tweet.QuotedStatusID)
+	putText(data, "selfThreadId", tweet.SelfThreadID)
 	if tweet.ArticleTitle != nil {
 		data["articleTitle"] = *tweet.ArticleTitle
 	}
@@ -161,6 +166,12 @@ func Folders(folders []model.BookmarkFolder) []any {
 		out = append(out, map[string]any{"id": folder.ID, "name": folder.Name})
 	}
 	return out
+}
+
+func putText(data map[string]any, key, value string) {
+	if value != "" {
+		data[key] = value
+	}
 }
 
 func media(items []model.TweetMedia) []any {

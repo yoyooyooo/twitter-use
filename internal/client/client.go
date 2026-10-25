@@ -107,21 +107,13 @@ func (c *Client) graphqlGet(operation string, variables map[string]any, features
 	if err != nil {
 		return nil, err
 	}
-	usingFallback := queryID == graphql.FallbackQueryIDs[operation]
 	data, err := c.api(graphql.BuildURL(queryID, operation, variables, features, toggles), http.MethodGet, nil)
 	if err == nil {
 		return data, nil
 	}
-	apiErr, ok := err.(*errs.Error)
-	if ok && (apiErr.Status == 404 || apiErr.Status == 422) && usingFallback {
-		graphql.Invalidate(operation)
-		queryID, resolveErr := graphql.Resolve(operation, false, c.fetchText)
-		if resolveErr != nil {
-			return nil, resolveErr
-		}
-		return c.api(graphql.BuildURL(queryID, operation, variables, features, toggles), http.MethodGet, nil)
-	}
-	return nil, err
+	return c.retryQuery(operation, queryID, err, func(id string) (map[string]any, error) {
+		return c.api(graphql.BuildURL(id, operation, variables, features, toggles), http.MethodGet, nil)
+	})
 }
 
 func (c *Client) graphqlPost(operation string, variables map[string]any, features map[string]any) (map[string]any, error) {
@@ -129,7 +121,6 @@ func (c *Client) graphqlPost(operation string, variables map[string]any, feature
 	if err != nil {
 		return nil, err
 	}
-	usingFallback := queryID == graphql.FallbackQueryIDs[operation]
 	do := func(id string) (map[string]any, error) {
 		body := map[string]any{"variables": variables, "queryId": id}
 		if features != nil {
@@ -141,16 +132,23 @@ func (c *Client) graphqlPost(operation string, variables map[string]any, feature
 	if err == nil {
 		return data, nil
 	}
+	return c.retryQuery(operation, queryID, err, do)
+}
+
+func (c *Client) retryQuery(operation, queryID string, err error, do func(string) (map[string]any, error)) (map[string]any, error) {
 	apiErr, ok := err.(*errs.Error)
-	if ok && (apiErr.Status == 404 || apiErr.Status == 422) && usingFallback {
-		graphql.Invalidate(operation)
-		queryID, resolveErr := graphql.Resolve(operation, false, c.fetchText)
-		if resolveErr != nil {
-			return nil, resolveErr
-		}
-		return do(queryID)
+	if !ok || (apiErr.Status != 404 && apiErr.Status != 422) {
+		return nil, err
 	}
-	return nil, err
+	graphql.Invalidate(operation)
+	nextID, resolveErr := graphql.Resolve(operation, false, c.fetchText)
+	if resolveErr != nil {
+		return nil, resolveErr
+	}
+	if nextID == "" || nextID == queryID {
+		return nil, err
+	}
+	return do(nextID)
 }
 
 func (c *Client) api(rawURL, method string, body map[string]any) (result map[string]any, err error) {

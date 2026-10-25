@@ -159,7 +159,12 @@ func Tweet(result map[string]any, depth int) *model.Tweet {
 		},
 		CreatedAt: jsonx.String(actualLegacy["created_at"]), Media: mediaOf(actualLegacy), URLs: urls,
 		IsRetweet: isRetweet, Lang: jsonx.String(actualLegacy["lang"]), RetweetedBy: retweetedBy, QuotedTweet: quoted,
-		ArticleTitle: title, ArticleText: article,
+		InReplyToStatusID: firstID(actualLegacy["in_reply_to_status_id_str"], actualLegacy["in_reply_to_status_id"]),
+		InReplyToUserID:   firstID(actualLegacy["in_reply_to_user_id_str"], actualLegacy["in_reply_to_user_id"]),
+		ConversationID:    firstID(actualLegacy["conversation_id_str"], actualLegacy["conversation_id"]),
+		QuotedStatusID:    firstID(actualLegacy["quoted_status_id_str"], actualLegacy["quoted_status_id"]),
+		SelfThreadID:      firstID(jsonx.Get(actualLegacy, "self_thread", "id_str"), jsonx.Get(actualLegacy, "self_thread", "id")),
+		ArticleTitle:      title, ArticleText: article,
 	}
 	if isRetweet {
 		tweet.IsSubscriberOnly = subscriber || retweetSubscriber
@@ -502,6 +507,36 @@ func cursorValue(content map[string]any) string {
 	return ""
 }
 
+// Cursors lists cursor values grouped by cursorType. Order follows the instruction tree.
+func Cursors(instructions []any) map[string][]string {
+	found := map[string][]string{}
+	seen := map[string]bool{}
+	var walk func(any)
+	walk = func(value any) {
+		switch typed := value.(type) {
+		case map[string]any:
+			kind := jsonx.String(typed["cursorType"])
+			item := jsonx.String(typed["value"])
+			if kind != "" && item != "" {
+				key := kind + "\n" + item
+				if !seen[key] {
+					seen[key] = true
+					found[kind] = append(found[kind], item)
+				}
+			}
+			for _, child := range typed {
+				walk(child)
+			}
+		case []any:
+			for _, child := range typed {
+				walk(child)
+			}
+		}
+	}
+	walk(instructions)
+	return found
+}
+
 func promoted(entry, item map[string]any) bool {
 	id := jsonx.String(entry["entryId"])
 	return strings.HasPrefix(id, "promoted-") || item["promotedMetadata"] != nil
@@ -516,6 +551,15 @@ func firstString(values ...any) string {
 	for _, value := range values {
 		if text := jsonx.String(value); text != "" {
 			return text
+		}
+	}
+	return ""
+}
+
+func firstID(values ...any) string {
+	for _, value := range values {
+		if id := textID(value); id != "" {
+			return id
 		}
 	}
 	return ""

@@ -132,8 +132,16 @@ func (c *Client) ResolveUserID(identifier string) (string, error) {
 }
 
 func (c *Client) UserTweets(userID string, count int, cursor string) ([]model.Tweet, error) {
+	return c.userTimeline("UserTweets", userID, count, cursor)
+}
+
+func (c *Client) UserTweetsAndReplies(userID string, count int, cursor string) ([]model.Tweet, error) {
+	return c.userTimeline("UserTweetsAndReplies", userID, count, cursor)
+}
+
+func (c *Client) userTimeline(operation, userID string, count int, cursor string) ([]model.Tweet, error) {
 	return c.timeline(timelineSpec{
-		operation: "UserTweets", count: count, cursor: cursor,
+		operation: operation, count: count, cursor: cursor,
 		extra: map[string]any{"userId": userID, "includePromotedContent": true, "withQuickPromoteEligibilityTweetFields": true, "withVoice": true, "withV2Timeline": true},
 		instructions: func(data map[string]any) []any {
 			items := parser.Instructions(data, "data", "user", "result", "timeline", "timeline", "instructions")
@@ -178,6 +186,7 @@ func (c *Client) TweetDetail(id string, count int, ranking, cursor string) ([]mo
 	}
 	return c.timeline(timelineSpec{
 		operation: "TweetDetail", count: count, override: true, cursor: cursor,
+		branchCursor: []string{"ShowMoreThreads"},
 		extra: map[string]any{
 			"focalTweetId": id, "referrer": "tweet", "with_rux_injections": false, "includePromotedContent": true,
 			"rankingMode": ranking, "withCommunity": true, "withQuickPromoteEligibilityTweetFields": true,

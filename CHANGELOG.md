@@ -4,6 +4,8 @@
 
 `install.sh` downloads a GitHub Release binary, checks `SHA256SUMS`, and writes `~/.local/bin/twitter`. Pass a tag to pin one release. This does not publish a new binary.
 
+`twitter tweet` keeps reply links that the GraphQL payload already contained: `inReplyToStatusId`, `inReplyToUserId`, `conversationId`, `quotedStatusId`, and `selfThreadId`. Its JSON data is `focal`, `ancestors`, and `replies` instead of one flat list. An unknown post id is `not_found`. Tweet detail also follows a `ShowMoreThreads` cursor after the bottom cursor ends. `posts --with-replies` uses `UserTweetsAndReplies`. A search time slice did not return more quote posts than one unsplit query, so it is not a flag.
+
 ## 0.1.2
 
 `~/.twitter-use/accounts.json` replaces the text pool file. Each account has `auth_token`, `ct0`, an optional `alias`, at most one `primary`, and `pool`. A primary defaults to staying out of public rotation. Other accounts default to the pool. Legacy `accounts.txt` still loads when the JSON file is absent, and every line stays pool-only.

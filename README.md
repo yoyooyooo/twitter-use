@@ -136,7 +136,7 @@ Bootstrap requests attach cookies only to HTTPS `x.com` or `twitter.com`. Redire
 
 ## Limits
 
-There is no command to post, reply, quote, or delete. List timelines are not implemented. A fetch stops at 500 items. Replies on a tweet can stop while X still reports a higher reply count; `pagination` says so instead of pretending the thread is complete. The TLS profile is Chrome 133 over HTTP/2 through [tls-client](https://github.com/bogdanfinn/tls-client). It is not a byte-for-byte browser impersonation.
+`twitter tweet` returns `focal`, `ancestors`, and `replies`, and follows folded thread cursors. Each post includes reply and conversation ids when X sent them. `posts --with-replies` includes that account's replies. There is no command to post, reply, quote, or delete. List timelines are not implemented. A fetch stops at 500 items. Replies on a tweet can stop while X still reports a higher reply count; `pagination` says so instead of pretending the thread is complete. The TLS profile is Chrome 133 over HTTP/2 through [tls-client](https://github.com/bogdanfinn/tls-client). It is not a byte-for-byte browser impersonation.
 
 ## Development
 

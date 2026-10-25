@@ -17,7 +17,8 @@ const openAPIURL = "https://raw.githubusercontent.com/fa0311/twitter-openapi/ref
 var FallbackQueryIDs = map[string]string{
 	"HomeTimeline": "0toR0MxC06yY3Fc57GXBpA", "HomeLatestTimeline": "KQPfcqQJJqF6M0D77p3JKw",
 	"UserByScreenName": "1VOOyvKkiI3FMmkeDNxM9A", "UserTweets": "q6xj5bs0hapm9309hexA_g",
-	"TweetDetail": "xd_EMdYvB9hfZsZ6Idri0w", "Likes": "mzOgReEsktOIIXzWkqf0ig",
+	"UserTweetsAndReplies": "bnsYxFljT6y98rFwiGr3fw",
+	"TweetDetail":          "xd_EMdYvB9hfZsZ6Idri0w", "Likes": "mzOgReEsktOIIXzWkqf0ig",
 	"SearchTimeline": "VhUd6vHVmLBcw0uX-6jMLA", "Bookmarks": "2neUNDqrrFzbLui8yallcQ",
 	"ListLatestTweetsTimeline": "RlZzktZY_9wJynoepm8ZsA", "Followers": "IOh4aS6UdGWGJUYTqliQ7Q",
 	"Following": "zx6e-TLzRkeDO_a7p4b3JQ", "CreateTweet": "IID9x6WsdMnTlXnzXGq8ng",
